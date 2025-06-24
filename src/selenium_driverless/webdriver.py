@@ -852,13 +852,16 @@ class Chrome:
 
                     # clean temp dir for extensions etc
                     try:
+                        print(f"Starting cleanup for temp_dir: {self._temp_dir}")
                         await asyncio.wait_for(
                             # wait for
                             loop.run_in_executor(None,
                                                  lambda: clean_dirs_sync(
                                                      [self._temp_dir])),
                             timeout=max(5, int(timeout - (time.perf_counter() - start))))
+                        print("Cleanup finished successfully.")
                     except Exception as e:
+                        print(f"Cleanup of temp_dir timed out or failed: {e}")
                         EXC_HANDLER(e)
 
                     if clean_dirs:
