@@ -853,7 +853,7 @@ class Chrome:
 
                     # clean temp dir for extensions etc
                     try:
-                        print(f"Starting cleanup for temp_dir: {self._temp_dir}")
+                        print(f"Starting cleanup for temp_dir: {self._temp_dir}, PID: {self.browser_pid}")
                         await asyncio.wait_for(
                             # wait for
                             loop.run_in_executor(None,
