@@ -664,6 +664,7 @@ class Chrome:
 
         returns the same as :func:`Target.wait_download <selenium_driverless.types.target.Target.wait_download>` if the url initiates a download
         """
+        print(f"Loading {url} in process {self._process.pid} with browser PID {self.browser_pid}")
         return await self.current_target.get(url=url, referrer=referrer, wait_load=wait_load, timeout=timeout)
 
     @property
