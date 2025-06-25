@@ -799,6 +799,7 @@ class Chrome:
         :param timeout: the maximum time waiting for chrome to quit correctly
         :param clean_dirs: whether to clean out the user-data-dir directory
         """
+        print("webdriver quit test print")
         from selenium_driverless import EXC_HANDLER
 
         loop = asyncio.get_running_loop()
