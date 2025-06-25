@@ -20,6 +20,7 @@
 
 """The WebDriver implementation."""
 import os
+import psutil
 import shutil
 import subprocess
 import sys
@@ -807,79 +808,69 @@ class Chrome:
                 while os.path.isdir(_dir):
                     shutil.rmtree(_dir, ignore_errors=True)
 
+        def kill_process_tree(proc):
+            try:
+                parent = psutil.Process(proc.pid)
+                children = parent.children(recursive=True)
+                for child in children:
+                    child.kill()
+                parent.kill()
+            except Exception as e:
+                EXC_HANDLER(e)
+
         if self._started:
             start = time.perf_counter()
-            # noinspection PyUnresolvedReferences
             try:
-                # assumption: chrome is still running
                 await self.base_target.execute_cdp_cmd("Browser.close", timeout=7)
             except websockets.ConnectionClosedError:
                 pass
             except Exception as e:
                 EXC_HANDLER(e)
-            if not self._is_remote:
-                if self._process is not None:
-                    # assumption: chrome is being shutdown manually or programmatically
+
+            if not self._is_remote and self._process is not None:
+                try:
+                    await loop.run_in_executor(None, lambda: self._process.wait(timeout))
+                    self._process = None
+                except Exception:
                     try:
-                        await loop.run_in_executor(None, lambda: self._process.wait(timeout))
+                        print(f"Timeout or error during normal Chrome shutdown, force-killing PID: {self._process.pid}")
+                        await loop.run_in_executor(None, lambda: kill_process_tree(self._process))
+                        self._process = None
                     except Exception as e:
                         EXC_HANDLER(e)
-                    else:
-                        self._process = None
+
+            self._started = False
+            if self._stderr_file:
                 try:
-                    # assumption: chrome hasn't closed within timeout, killing with force
-                    # wait for process to be killed
-                    if self._process is not None:
-                        if os.name == 'posix':
-                            os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
-                        else:
-                            self._process.terminate()
-                        try:
-                            await loop.run_in_executor(None, lambda: self._process.wait(timeout))
-                        except subprocess.TimeoutExpired:
-                            if os.name == 'posix':
-                                os.killpg(os.getpgid(self._process.pid), signal.SIGKILL)
-                            else:
-                                self._process.kill()
+                    self._stderr.close()
                 except Exception as e:
                     EXC_HANDLER(e)
-                finally:
-                    self._started = False
-                    if self._stderr_file:
-                        try:
-                            self._stderr.close()
-                        except Exception as e:
-                            EXC_HANDLER(e)
 
-                    # clean temp dir for extensions etc
-                    try:
-                        print(f"Starting cleanup for temp_dir: {self._temp_dir}, PID: {self.browser_pid}")
-                        await asyncio.wait_for(
-                            # wait for
-                            loop.run_in_executor(None,
-                                                 lambda: clean_dirs_sync(
-                                                     [self._temp_dir])),
-                            timeout=max(5, int(timeout - (time.perf_counter() - start))))
-                        print("Cleanup finished successfully.")
-                    except Exception as e:
-                        print(f"Cleanup of temp_dir timed out or failed: {e}")
-                        EXC_HANDLER(e)
+            try:
+                print(f"Starting cleanup for temp_dir: {self._temp_dir}, PID: {self.browser_pid}")
+                await asyncio.wait_for(
+                    loop.run_in_executor(None, lambda: clean_dirs_sync([self._temp_dir])),
+                    timeout=max(5, int(timeout - (time.perf_counter() - start)))
+                )
+                print("Cleanup finished successfully.")
+            except Exception as e:
+                print(f"Cleanup of temp_dir timed out or failed: {e}")
+                EXC_HANDLER(e)
 
-                    if clean_dirs:
-                        # clean user-data-dir for chrome
-                        try:
-                            await asyncio.wait_for(
-                                # wait for
-                                loop.run_in_executor(None,
-                                                     lambda: clean_dirs_sync(
-                                                         [self._options.user_data_dir])),
-                                timeout=max(5, int(timeout - (time.perf_counter() - start))))
-                        except Exception as e:
-                            warnings.warn(
-                                "driver hasn't quit correctly, "
-                                "files might be left in your temp folder & chrome might still be running",
-                                ResourceWarning)
-                            raise e
+            if clean_dirs:
+                try:
+                    await asyncio.wait_for(
+                        loop.run_in_executor(None, lambda: clean_dirs_sync([self._options.user_data_dir])),
+                        timeout=max(5, int(timeout - (time.perf_counter() - start)))
+                    )
+                except Exception as e:
+                    warnings.warn(
+                        "driver hasn't quit correctly, files might be left in your temp folder "
+                        "& chrome might still be running",
+                        ResourceWarning
+                    )
+                    raise e
+
 
     def __del__(self):
         try:
