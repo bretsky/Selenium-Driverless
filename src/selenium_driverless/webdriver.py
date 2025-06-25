@@ -799,15 +799,35 @@ class Chrome:
         :param timeout: the maximum time waiting for chrome to quit correctly
         :param clean_dirs: whether to clean out the user-data-dir directory
         """
-        print("webdriver quit test print")
         from selenium_driverless import EXC_HANDLER
 
         loop = asyncio.get_running_loop()
 
         def clean_dirs_sync(dirs: typing.List[str]):
             for _dir in dirs:
-                while os.path.isdir(_dir):
-                    shutil.rmtree(_dir, ignore_errors=True)
+                if not os.path.exists(_dir):
+                    continue
+                try:
+                    for root, dirs_, files_ in os.walk(_dir, topdown=False):
+                        for name in files_:
+                            try:
+                                os.unlink(os.path.join(root, name))
+                            except Exception:
+                                pass
+                        for name in dirs_:
+                            try:
+                                os.rmdir(os.path.join(root, name))
+                            except Exception:
+                                pass
+                    os.rmdir(_dir)
+                except Exception:
+                    pass  # fallback below
+                if os.path.exists(_dir):
+                    try:
+                        shutil.rmtree(_dir, ignore_errors=True)
+                    except Exception:
+                        pass
+
 
         def kill_process_tree(proc):
             try:
