@@ -665,7 +665,7 @@ class Chrome:
 
         returns the same as :func:`Target.wait_download <selenium_driverless.types.target.Target.wait_download>` if the url initiates a download
         """
-        print(f"Loading {url} in process {self._process.pid} with browser PID {self.browser_pid}")
+        # print(f"Loading {url} in process {self._process.pid} with browser PID {self.browser_pid}")
         return await self.current_target.get(url=url, referrer=referrer, wait_load=wait_load, timeout=timeout)
 
     @property
@@ -868,12 +868,12 @@ class Chrome:
                     EXC_HANDLER(e)
 
             try:
-                print(f"Starting cleanup for temp_dir: {self._temp_dir}, PID: {self.browser_pid}")
+                # print(f"Starting cleanup for temp_dir: {self._temp_dir}, PID: {self.browser_pid}")
                 await asyncio.wait_for(
                     loop.run_in_executor(None, lambda: clean_dirs_sync([self._temp_dir])),
                     timeout=max(5, int(timeout - (time.perf_counter() - start)))
                 )
-                print("Cleanup finished successfully.")
+                # print("Cleanup finished successfully.")
             except Exception as e:
                 print(f"Cleanup of temp_dir timed out or failed: {e}")
                 EXC_HANDLER(e)
