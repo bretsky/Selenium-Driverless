@@ -868,7 +868,7 @@ class Chrome:
                     EXC_HANDLER(e)
 
             try:
-                # print(f"Starting cleanup for temp_dir: {self._temp_dir}, PID: {self.browser_pid}")
+                print(f"Starting cleanup for temp_dir: {self._temp_dir}, PID: {self.browser_pid}")
                 await asyncio.wait_for(
                     loop.run_in_executor(None, lambda: clean_dirs_sync([self._temp_dir])),
                     timeout=max(5, int(timeout - (time.perf_counter() - start)))
